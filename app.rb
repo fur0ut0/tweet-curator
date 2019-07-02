@@ -1,15 +1,45 @@
 require 'pathname'
 require 'optparse'
 require 'time'
+require 'logger'
 
 require 'twitter'
 require 'redis'
 
 
+def main
+    # Parse option
+    options = {}
+    OptionParser.new.tap { |opt|
+        opt.on('-t', '--test')
+        opt.on('-s JSON', '--serialize=JSON') { |v| Pathname.new(v) }
+    }.parse(into: options)
+
+    # Logger
+    logger = Logger.new($stderr, progname: 'TweetCurator')
+
+    if options[:test]
+        require 'dotenv'
+        Dotenv.load
+    end
+
+    json_path = options[:serialize]
+    # NOTE: JSON.load in Ruby 2.6.3 has a bug, using parse instead
+    tweets = JSON.parse(json_path.read, symbolize_names: true) if json_path&.file?
+    tweets ||= fetch_timeline_tweets
+    JSON.dump(tweets, json_path)
+
+    call_without_abort(logger: logger) do
+        save_shrinked_tweets_to_redis(tweets)
+    end
+end
+
+#------------------------------------------------------------------------------
+# Pipeline
+#------------------------------------------------------------------------------
+
 # Fetch twitter home timeline
 def fetch_timeline_tweets
-    p "fetch from twitter"
-
     twitter_client = Twitter::REST::Client.new do |config|
         config.consumer_key        = ENV['TWITTER_CONSUMER_KEY']
         config.consumer_secret     = ENV['TWITTER_CONSUMER_SECRET']
@@ -17,9 +47,29 @@ def fetch_timeline_tweets
         config.access_token_secret = ENV['TWITTER_ACCESS_TOKEN_SECRET']
     end
 
-    return twitter_client.home_timeline(count: 3200, include_rts: true).map(&:attrs)
+    return twitter_client.home_timeline(count: 200, include_rts: true).map(&:attrs)
 end
 
+def call_without_abort(logger: nil, &block)
+    begin
+        yield
+    rescue => err
+        if logger
+            logger.error("Error: " + err.full_message)
+        else
+            puts err.full_message
+        end
+    end
+end
+
+def save_shrinked_tweets_to_redis(tweets)
+    shrinked = tweets.map { |t| shrink_tweet(t) }
+    redis = Redis.new(url: ENV['REDIS_URL'])
+    save_tweets_to_redis(shrinked, redis)
+end
+
+
+# Shrink tweet attribute designed to collect statistic
 def shrink_tweet(tweet)
     def determine_type(tweet)
         return 'retweet' if tweet[:retweeted_status]
@@ -36,13 +86,14 @@ def shrink_tweet(tweet)
     }
 end
 
-def save_to_redis(tweets, redis)
+def save_tweets_to_redis(tweets, redis)
     prefix = 'tweets'
 
     # Ignore already saved tweets
     # Using tweet ID to check existence
-    recent_saved_ids = redis.lrange("#{prefix}:id", 0, 4) # NOTE: I think 5 is enough
-    stop_idx = tweets.find { |t| recent_saved_ids.include?(t[:id]) }
+    recent_saved_ids = redis.lrange("#{prefix}:id", 0, 4).map(&:to_i) # NOTE: I think 5 is enough
+    stop_idx = tweets.find_index { |t| recent_saved_ids.include?(t[:id]) }
+    puts "Stop: #{stop_idx} #{tweets.size}"
     tweets = tweets[0...stop_idx]
 
     tweets = tweets.reverse # Storing from older one
@@ -54,29 +105,5 @@ def save_to_redis(tweets, redis)
 end
 
 if $0 == __FILE__
-    opt_parser = OptionParser.new
-    opt_parser.on('-t', '--test')
-    opt_parser.on('-s JSON', '--serialize=JSON') { |v| Pathname.new(v) }
-    options = {}
-    opt_parser.parse!(into: options)
-
-    if options.include?(:test)
-        require 'dotenv'
-        Dotenv.load
-    end
-
-    json_path = options.fetch(:serialize, nil)
-    tweets = JSON.parse(json_path.read, symbolize_names: true) if json_path&.file?
-    tweets ||= fetch_timeline_tweets
-    p tweets.size
-    JSON.dump(tweets, json_path)
-
-    begin
-        shrinked = tweets.map { |t| shrink_tweet(t) }
-        redis = Redis.new(url: ENV['REDIS_URL'])
-        save_to_redis(shrinked, redis)
-    rescue => err
-        p err
-        raise
-    end
+    main
 end
