@@ -1,6 +1,5 @@
 require 'pathname'
 require 'optparse'
-require 'time'
 require 'logger'
 
 require 'twitter'
@@ -32,7 +31,7 @@ def main
     JSON.dump(tweets, json_path)
 
     call_without_abort(logger: logger) do
-        save_shrinked_tweets_to_redis(tweets)
+        frequency_pipeline(tweets, logger: logger)
     end
 end
 
@@ -64,48 +63,20 @@ def call_without_abort(logger: nil, &block)
     end
 end
 
-def save_shrinked_tweets_to_redis(tweets)
-    shrinked = tweets.map { |t| shrink_tweet(t) }
-    redis = Redis.new(url: ENV['REDIS_URL'])
-    save_tweets_to_redis(shrinked, redis)
+def frequency_pipeline(tweets, logger: nil)
+    min_tweets = tweets.map { |t| Frequency::MinTweet.from_tweet(t) }
+    redis = Frequency::MinTweetRedis.new(Redis.new(url: ENV['REDIS_URL']))
+
+    recent_ids = redis.restore(0...5, use_keys: [:id]).map(&:id)
+    stop_idx = min_tweets.find_index { |t| recent_ids.include?(t.id) }
+    min_tweets = min_tweets[0...stop_idx]
+
+    min_tweets.reverse.each { |t| redis.store(t) }
+    logger&.info { "Stored #{min_tweets.size} tweets in Redis" }
 end
 
-
-# Shrink tweet attribute designed to collect statistic
-def shrink_tweet(tweet)
-    def determine_type(tweet)
-        return 'retweet' if tweet[:retweeted_status]
-        return 'reply'   if tweet[:in_reply_to_status_id]
-        return 'quoted'  if tweet[:quoted_status]
-        return 'normal'
-    end
-
-    {
-        id:          tweet[:id],
-        timestamp:   Time.parse(tweet[:created_at]),
-        screen_name: tweet[:user][:screen_name],
-        type:        determine_type(tweet),
-    }
-end
-
-def save_tweets_to_redis(tweets, redis)
-    prefix = 'tweets'
-
-    # Ignore already saved tweets
-    # Using tweet ID to check existence
-    recent_saved_ids = redis.lrange("#{prefix}:id", 0, 4).map(&:to_i) # NOTE: I think 5 is enough
-    stop_idx = tweets.find_index { |t| recent_saved_ids.include?(t[:id]) }
-    puts "Stop: #{stop_idx} #{tweets.size}"
-    tweets = tweets[0...stop_idx]
-
-    tweets = tweets.reverse # Storing from older one
-    tweets.each do |attr|
-        attr.each_pair do |key,val|
-            redis.lpush("#{prefix}:#{key}", val)
-        end
-    end
-end
 
 if $0 == __FILE__
     main
 end
+
