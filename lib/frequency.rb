@@ -82,7 +82,7 @@ module Frequency
             items = values_per_key.transpose
 
             items.map do |item|
-                hash = MinTweet::FIELDS.zip(items).to_h
+                hash = MinTweet::FIELDS.zip(item).to_h
                 MinTweet.new(hash)
             end
         end
