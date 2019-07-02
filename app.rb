@@ -20,28 +20,34 @@ def fetch_timeline_tweets
 end
 
 def shrink_tweet(tweet)
-    shrinked = {}
-
-    shrinked[:id] = tweet['id']
-    shrinked[:timestamp] = Time.parse(tweet['created_at']).iso8601
-    shrinked[:screen_name] = tweet['user']['screen_name']
-    shrinked[:type] = -> {
-        return 'retweet' if tweet['retweeted_status']
-        return 'reply'   if tweet['in_reply_to_status_id']
-        return 'quoted'  if tweet['quoted_status']
+    def determine_type(tweet)
+        return 'retweet' if tweet[:retweeted_status]
+        return 'reply'   if tweet[:in_reply_to_status_id]
+        return 'quoted'  if tweet[:quoted_status]
         return 'normal'
-    }.call
+    end
 
-    shrinked
+    {
+        id:          tweet[:id],
+        timestamp:   Time.parse(tweet[:created_at]),
+        screen_name: tweet[:user][:screen_name],
+        type:        determine_type(tweet),
+    }
 end
 
 def save_to_redis(tweets, redis)
-    # TODO: get timestamp of latest stored tweet in redis
+    prefix = 'tweets'
 
-    tweets = tweets.reverse # storing from older one
+    # Ignore already saved tweets
+    # Using tweet ID to check existence
+    recent_saved_ids = redis.lrange("#{prefix}:id", 0, 4) # NOTE: I think 5 is enough
+    stop_idx = tweets.find { |t| recent_saved_ids.include?(t[:id]) }
+    tweets = tweets[0...stop_idx]
+
+    tweets = tweets.reverse # Storing from older one
     tweets.each do |attr|
         attr.each_pair do |key,val|
-            redis.lpush("tweets:#{key}", val)
+            redis.lpush("#{prefix}:#{key}", val)
         end
     end
 end
@@ -60,7 +66,7 @@ if $0 == __FILE__
     end
 
     json_path = options.fetch(:serialize, nil)
-    tweets = JSON.load(json_path) if json_path&.file?
+    tweets = JSON.parse(json_path.read, symbolize_names: true) if json_path&.file?
     tweets ||= fetch_timeline_tweets
     p tweets.size
     JSON.dump(tweets, json_path)
@@ -68,7 +74,7 @@ if $0 == __FILE__
     begin
         shrinked = tweets.map { |t| shrink_tweet(t) }
         redis = Redis.new(url: ENV['REDIS_URL'])
-        #save_to_redis(shrinked, redis)
+        save_to_redis(shrinked, redis)
     rescue => err
         p err
         raise
