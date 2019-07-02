@@ -6,14 +6,16 @@ require 'logger'
 require 'twitter'
 require 'redis'
 
+require_relative 'lib/frequency'
+
 
 def main
     # Parse option
     options = {}
-    OptionParser.new.tap { |opt|
-        opt.on('-t', '--test')
-        opt.on('-s JSON', '--serialize=JSON') { |v| Pathname.new(v) }
-    }.parse(into: options)
+    opt_parser = OptionParser.new
+    opt_parser.on('-t', '--test')
+    opt_parser.on('-s JSON', '--serialize=JSON') { |v| Pathname.new(v) }
+    opt_parser.parse!(into: options)
 
     # Logger
     logger = Logger.new($stderr, progname: 'TweetCurator')
