@@ -1,3 +1,4 @@
+cache
 
 # Created by https://www.gitignore.io/api/ruby
 # Edit at https://www.gitignore.io/?templates=ruby
@@ -16,7 +17,7 @@
 /tmp/
 
 # Used by dotenv library to load environment variables.
-# .env
+.env
 
 # Ignore Byebug command history file.
 .byebug_history
