@@ -6,6 +6,7 @@ require 'twitter'
 require 'redis'
 
 
+# Fetch twitter home timeline
 def fetch_timeline_tweets
     p "fetch from twitter"
 
@@ -56,7 +57,6 @@ if $0 == __FILE__
     opt_parser = OptionParser.new
     opt_parser.on('-t', '--test')
     opt_parser.on('-s JSON', '--serialize=JSON') { |v| Pathname.new(v) }
-
     options = {}
     opt_parser.parse!(into: options)
 
