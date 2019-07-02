@@ -48,7 +48,23 @@ def fetch_timeline_tweets
         config.access_token_secret = ENV['TWITTER_ACCESS_TOKEN_SECRET']
     end
 
-    return twitter_client.home_timeline(count: 200, include_rts: true).map(&:attrs)
+    # 'home_timeline' API can retrieve upto 200 tweets
+    # Since 800 tweets are available, we call it 4 times
+    total_tweets = []
+    max_id = nil
+    4.times do |i|
+        opts = {count: 200, include_rts: true}
+        opts[:max_id] = max_id if max_id
+        tweets = twitter_client.home_timeline(opts).map(&:attrs)
+
+        last_id = tweets.last[:id]
+        tweets.shift if max_id
+        max_id = last_id
+
+        total_tweets += tweets
+    end
+
+    total_tweets
 end
 
 def call_without_abort(logger: nil, &block)
