@@ -23,6 +23,7 @@ def share_media_link_to_slack(tweets, slack_webhook_url, logger: nil)
     req.body = {
       text: text,
     }.to_json
+    http.request(req)
   end
 
   # traverse from old ones
