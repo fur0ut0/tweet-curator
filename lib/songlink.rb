@@ -25,8 +25,13 @@ def share_media_link_to_slack(tweets, slack_webhook_url, logger: nil)
     }.to_json
   end
 
-  tweets.each do |t|
-    urls = t.attrs[:entities][:urls]&.filter { |url| SONG_URL_DOMAINS.any? { |dom| url[:expanded_url].include?(dom) } }
+  # traverse from old ones
+  tweets.reverse.each do |t|
+    # collect song link
+    urls = t.attrs[:entities][:urls]&.filter do |url|
+      SONG_URL_DOMAINS.any? { |dom| url[:expanded_url].include?(dom) }
+    end
+
     unless urls.empty?
       # tweet URL
       post_to_slack.call(t.url)
