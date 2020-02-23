@@ -3,6 +3,7 @@ require "uri"
 
 SONG_URL_DOMAINS = %w[
   song.link
+  album.link
   youtube.com
   youtu.be
   music.apple.com
