@@ -26,11 +26,12 @@ def medialink_pipeline(tweets, slack_webhook_url, logger: nil)
   # traverse from old ones
   tweets.reverse.each do |t|
     urls = t.attrs[:entities][:urls].map { |url| url[:expanded_url] }.uniq
-    next if urls.empty?
+    is_nowplaying = !!(/nowplaying/i =~ t.attrs[:text])
+    next if urls.empty? && !is_nowplaying
 
     # generate attachment data structure of each service
     main_text_parts, sub_texts, attachments = gen_medialink_structure(urls)
-    next if main_text_parts.empty?
+    next if main_text_parts.empty? && !is_nowplaying
 
     attachments.prepend(gen_twitter_attachment(t))
 
@@ -56,7 +57,7 @@ def gen_twitter_attachment(tweet)
   end
 
   attachment = {
-    author: gen_name.call(attrs),
+    author_name: gen_name.call(attrs),
     author_link: tweet.url,
     author_icon: attrs[:user][:profile_image_url_https],
     color: "#00acee",
