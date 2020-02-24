@@ -3,6 +3,7 @@
 require "net/http"
 require "time"
 require "uri"
+require "open-uri"
 
 require "twitter"
 require "nokogiri"
@@ -24,57 +25,69 @@ def medialink_pipeline(tweets, slack_webhook_url, logger: nil)
 
   # traverse from old ones
   tweets.reverse.each do |t|
-    urls = t.attrs[:entities][:urls].uniq
+    urls = t.attrs[:entities][:urls].map { |url| url[:expanded_url] }.uniq
     next if urls.empty?
 
     # generate attachment data structure of each service
-    title_parts = []
+    main_text_parts = []
+    sub_texts = []
     attachments = urls.map do |url|
-      case URI.parse(url).host
-      when Regexp.escape("song.link"), Regexp.escape("album.link")
-        title_parts << "Odesli"
+      host = URI.parse(url).host
+      case host
+      when /song\.link/, /"album\.link"/
+        main_text_parts << "Odesli"
         gen_odesli_attachment(url)
-      when Regexp.escape("youtube.com"), Regexp.escape("youtu.be")
-        title_parts << "Youtube"
-        gen_youtube_attachment(url)
-      when Regexp.escape("music.apple.com")
-        title_parts << "Apple Music"
+      when /youtube\.com/, /youtu\.be/
+        main_text_parts << "Youtube"
+        sub_texts << url
+        nil
+      when /music\.apple\.com/
+        main_text_parts << "Apple Music"
         gen_apple_music_attachment(url)
-      when Regexp.escape("open.spotify.com")
-        title_parts << "Spotify"
-        gen_spotify_attachment(url)
+      when /open\.spotify\.com/
+        main_text_parts << "Spotify"
+        sub_texts << url
+        nil
       else
         nil
       end
     end.compact
-    next if attachments.empty?
+    next if main_text_parts.empty?
 
     attachments.prepend(gen_twitter_attachment(t))
 
     post_to_slack.call({
-      title: title_parts.join(","),
+      text: "*#{main_text_parts.join(", ")}*",
       attachments: attachments,
     })
+
+    sub_texts.each do |text|
+      post_to_slack.call({
+        text: text,
+        unfurl_links: true,
+      })
+    end
   end
 end
 
 def gen_twitter_attachment(tweet)
-  attrs = tweet.attrs.fetch(:retweeted_status)
-  attrs ||= tweet.attrs
+  attrs = tweet.attrs.fetch(:retweeted_status, tweet.attrs)
 
   gen_name = Proc.new do |attrs|
     "#{attrs[:user][:name]} (@#{attrs[:user][:screen_name]})"
   end
 
   attachment = {
-    title: gen_name(attrs),
+    title: gen_name.call(attrs),
     title_link: tweet.url,
+    color: "#00acee",
     text: attrs[:text],
     thumb_url: attrs[:user][:profile_image_url_https],
     ts: Time.parse(attrs[:created_at]).to_i,
   }
   if tweet.attrs.include?(:retweeted_status)
-    attachment[:footer] = "Retweeted by #{gen_name(tweet.attrs)}"
+    attachment[:footer] = "Retweeted by #{gen_name.call(tweet.attrs)}"
+    attachment[:footer_icon] = tweet.attrs[:user][:profile_image_url_https]
   end
   attachment
 end
@@ -85,12 +98,6 @@ def fetch_html(url)
   end
 end
 
-def gen_spotify_attachment(url)
-  {
-    pretext: url,
-  }
-end
-
 def gen_apple_music_attachment(url)
   {
     pretext: url,
@@ -98,12 +105,6 @@ def gen_apple_music_attachment(url)
 end
 
 def gen_odesli_attachment(url)
-  {
-    pretext: url,
-  }
-end
-
-def gen_youtube_attachment(url)
   {
     pretext: url,
   }
