@@ -1,7 +1,9 @@
+# aggregate tweet frequency of users
+
 require "redis"
 require "time"
 
-def save_tweet_frequency_to_redis(tweets, logger: nil)
+def frequency_pipeline(tweets, logger: nil)
   min_tweets = tweets.map { |t| Frequency::MinTweet.from_tweet(t) }
   redis = Frequency::MinTweetRedis.new(Redis.new(url: ENV["REDIS_URL"]))
 

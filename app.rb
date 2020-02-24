@@ -5,8 +5,8 @@ require "logger"
 require "twitter"
 require "redis"
 
-require_relative "lib/frequency"
-require_relative "lib/songlink"
+require_relative "pipeline/frequency"
+require_relative "pipeline/medialink"
 
 # Fetch twitter home timeline
 def fetch_timeline_tweets(twitter_client, since_id = nil)
@@ -45,9 +45,14 @@ end
 
 def main
   options = {}
-  opt_parser = OptionParser.new
-  opt_parser.on("-t", "--test", "use local dotenv config")
+  opt_parser = OptionParser.new do |p|
+    p.banner = "usage: #{File.basename($0)} [options] pipeline_name"
+    p.on("-t", "--test", "use local dotenv config")
+  end
   opt_parser.parse!(into: options)
+
+  pipeline_name = ARGV.pop
+  raise "No pipiline name specified" unless pipeline_name
 
   if options[:test]
     require "dotenv"
@@ -70,8 +75,13 @@ def main
   redis&.set("since_id", tweets.first&.attrs[:id])
 
   # pipelines
-  if ENV.include?("SLACK_WEBHOOK_URL")
-    call_without_abort(logger: logger) do share_media_link_to_slack(tweets, ENV["SLACK_WEBHOOK_URL"]) end
+  case pipeline_name
+  when "medialink"
+    call_without_abort(logger: logger) { medialink_pipeline(tweets, ENV["SLACK_WEBHOOK_URL"]) }
+  when "frequency"
+    call_without_abort(logger: logger) { frequency_pipeline(tweets.map(&:attrs), ENV["SLACK_WEBHOOK_URL"]) }
+  else
+    raise "No such pipeline: #{ARGV[0]}"
   end
 end
 

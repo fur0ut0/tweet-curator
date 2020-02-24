@@ -1,17 +1,12 @@
+# share links to media to slack channel
+
+require "twitter"
 require "net/http"
 require "uri"
 
-SONG_URL_DOMAINS = %w[
-  song.link
-  album.link
-  youtube.com
-  youtu.be
-  music.apple.com
-  open.spotify.com
-]
-
-def share_media_link_to_slack(tweets, slack_webhook_url, logger: nil)
-  # slack API
+# @param tweets [Array<Twitter::Tweets>] tweets to process
+# @param slack_webhook_url String Slack webhook URL
+def medialink_pipeline(tweets, slack_webhook_url, logger: nil)
   uri = URI.parse(slack_webhook_url)
   http = Net::HTTP.new(uri.host, uri.port)
   http.use_ssl = true
@@ -26,12 +21,10 @@ def share_media_link_to_slack(tweets, slack_webhook_url, logger: nil)
 
   # traverse from old ones
   tweets.reverse.each do |t|
-    # collect song link
-    urls = t.attrs[:entities][:urls]&.filter do |url|
-      SONG_URL_DOMAINS.any? { |dom| url[:expanded_url].include?(dom) }
-    end
-
+    urls = t.attrs[:entities][:urls]
     next if urls.empty?
+
+    urls.filter! { |url| SONG_URL_DOMAINS.include?(URI.parse(url).host) }
 
     # tweet
     post_to_slack.call({
@@ -55,3 +48,12 @@ def share_media_link_to_slack(tweets, slack_webhook_url, logger: nil)
     end
   end
 end
+
+SONG_URL_DOMAINS = %w[
+  song.link
+  album.link
+  youtube.com
+  youtu.be
+  music.apple.com
+  open.spotify.com
+]
