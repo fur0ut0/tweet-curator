@@ -83,18 +83,18 @@ def gen_medialink_structure(urls)
   urls.each do |url|
     host = URI.parse(url).host
     case host
-    when /song\.link/, /"album\.link"/
+    when "song.link", "album.link"
       main_text_parts << "Odesli"
       #attachments << gen_odesli_attachment(url)
       sub_texts << url
-    when /youtube\.com/, /youtu\.be/
+    when "youtube.com", "youtu.be"
       main_text_parts << "Youtube"
       sub_texts << url
-    when /music\.apple\.com/
+    when "music.apple.com"
       main_text_parts << "Apple Music"
       #attachments << gen_apple_music_attachment(url)
       sub_texts << url
-    when /open\.spotify\.com/
+    when "open.spotify.com"
       main_text_parts << "Spotify"
       sub_texts << url
     end
