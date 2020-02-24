@@ -31,7 +31,8 @@ def medialink_pipeline(tweets, slack_webhook_url, logger: nil)
 
     # generate attachment data structure of each service
     main_text_parts, sub_texts, attachments = gen_medialink_structure(urls)
-    next if main_text_parts.empty? && !is_nowplaying
+    main_text_parts.prepend("Now Playing") if is_nowplaying
+    next if main_text_parts.empty?
 
     attachments.prepend(gen_twitter_attachment(t))
 
