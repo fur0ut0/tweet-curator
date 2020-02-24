@@ -56,16 +56,19 @@ def gen_twitter_attachment(tweet)
   end
 
   attachment = {
-    title: gen_name.call(attrs),
-    title_link: tweet.url,
+    author: gen_name.call(attrs),
+    author_link: tweet.url,
+    author_icon: attrs[:user][:profile_image_url_https],
     color: "#00acee",
     text: attrs[:text],
-    thumb_url: attrs[:user][:profile_image_url_https],
     ts: Time.parse(attrs[:created_at]).to_i,
   }
   if tweet.attrs.include?(:retweeted_status)
     attachment[:footer] = "Retweeted by #{gen_name.call(tweet.attrs)}"
     attachment[:footer_icon] = tweet.attrs[:user][:profile_image_url_https]
+  end
+  if attrs.include?(:extended_entities)
+    attachment[:thumb_url] = attrs[:extended_entities][:media].first
   end
   attachment
 end
