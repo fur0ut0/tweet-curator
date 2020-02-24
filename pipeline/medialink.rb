@@ -29,29 +29,7 @@ def medialink_pipeline(tweets, slack_webhook_url, logger: nil)
     next if urls.empty?
 
     # generate attachment data structure of each service
-    main_text_parts = []
-    sub_texts = []
-    attachments = urls.map do |url|
-      host = URI.parse(url).host
-      case host
-      when /song\.link/, /"album\.link"/
-        main_text_parts << "Odesli"
-        gen_odesli_attachment(url)
-      when /youtube\.com/, /youtu\.be/
-        main_text_parts << "Youtube"
-        sub_texts << url
-        nil
-      when /music\.apple\.com/
-        main_text_parts << "Apple Music"
-        gen_apple_music_attachment(url)
-      when /open\.spotify\.com/
-        main_text_parts << "Spotify"
-        sub_texts << url
-        nil
-      else
-        nil
-      end
-    end.compact
+    main_text_parts, sub_texts, attachments = gen_medialink_structure(urls)
     next if main_text_parts.empty?
 
     attachments.prepend(gen_twitter_attachment(t))
@@ -98,14 +76,36 @@ def fetch_html(url)
   end
 end
 
+def gen_medialink_structure(urls)
+  main_text_parts = []
+  sub_texts = []
+  attachments = []
+  urls.each do |url|
+    host = URI.parse(url).host
+    case host
+    when /song\.link/, /"album\.link"/
+      main_text_parts << "Odesli"
+      #attachments << gen_odesli_attachment(url)
+      sub_texts << url
+    when /youtube\.com/, /youtu\.be/
+      main_text_parts << "Youtube"
+      sub_texts << url
+    when /music\.apple\.com/
+      main_text_parts << "Apple Music"
+      #attachments << gen_apple_music_attachment(url)
+      sub_texts << url
+    when /open\.spotify\.com/
+      main_text_parts << "Spotify"
+      sub_texts << url
+    end
+  end.compact
+  [main_text_parts, sub_texts, attachments]
+end
+
 def gen_apple_music_attachment(url)
-  {
-    pretext: url,
-  }
+  # TODO
 end
 
 def gen_odesli_attachment(url)
-  {
-    pretext: url,
-  }
+  # TODO
 end
