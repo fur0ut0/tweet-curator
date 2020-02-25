@@ -6,27 +6,16 @@ require "uri"
 require "open-uri"
 
 require "twitter"
-require "nokogiri"
 
-# @param tweets [Array<Twitter::Tweets>] tweets to process
+require_relative "../lib/slack_util"
+
+# @param tweets [Array<Hash>] tweets to process
 # @param slack_webhook_url String Slack webhook URL
-def medialink_pipeline(tweets, slack_webhook_url, logger: nil)
-  uri = URI.parse(slack_webhook_url)
-  http = Net::HTTP.new(uri.host, uri.port)
-  http.use_ssl = true
-  http.verify_mode = OpenSSL::SSL::VERIFY_NONE
-
-  post_to_slack = Proc.new do |hash|
-    req = Net::HTTP::Post.new(uri.request_uri)
-    req["Content-Type"] = "application/json"
-    req.body = hash.to_json
-    http.request(req)
-  end
-
+def medialink_pipeline(tweets, slack_webhook:)
   # traverse from old ones
   tweets.reverse.each do |t|
-    urls = t.attrs[:entities][:urls].map { |url| url[:expanded_url] }.uniq
-    is_nowplaying = !!(/nowplaying/i =~ t.attrs[:text])
+    urls = t[:attrs][:entities][:urls].map { |url| url[:expanded_url] }.uniq
+    is_nowplaying = !!(/nowplaying/i =~ t[:attrs][:text])
     next if urls.empty? && !is_nowplaying
 
     # generate attachment data structure of each service
@@ -36,13 +25,13 @@ def medialink_pipeline(tweets, slack_webhook_url, logger: nil)
 
     attachments.prepend(gen_twitter_attachment(t))
 
-    post_to_slack.call({
+    slack_webhook.post({
       text: "*#{main_text_parts.join(", ")}*",
       attachments: attachments,
     })
 
     sub_texts.each do |text|
-      post_to_slack.call({
+      slack_webhook.post({
         text: text,
         unfurl_links: true,
       })
@@ -51,34 +40,28 @@ def medialink_pipeline(tweets, slack_webhook_url, logger: nil)
 end
 
 def gen_twitter_attachment(tweet)
-  attrs = tweet.attrs.fetch(:retweeted_status, tweet.attrs)
+  attrs = tweet[:attrs].fetch(:retweeted_status, tweet[:attrs])
 
   gen_name = Proc.new do |attrs|
-    "#{attrs[:user][:name]} (@#{attrs[:user][:screen_name]})"
+    "#{attrs[:user][:name]} (@#{attrs[:user][:screen_name]}) #{attrs[:user][:protected] ? "🔒" : ""}"
   end
 
   attachment = {
     author_name: gen_name.call(attrs),
-    author_link: tweet.url,
+    author_link: tweet[:url],
     author_icon: attrs[:user][:profile_image_url_https],
     color: "#00acee",
     text: attrs[:text],
     ts: Time.parse(attrs[:created_at]).to_i,
   }
-  if tweet.attrs.include?(:retweeted_status)
-    attachment[:footer] = "Retweeted by #{gen_name.call(tweet.attrs)}"
-    attachment[:footer_icon] = tweet.attrs[:user][:profile_image_url_https]
+  if tweet[:attrs][:retweeted_status]
+    attachment[:footer] = "Retweeted by #{gen_name.call(tweet[:attrs])}"
+    attachment[:footer_icon] = tweet[:attrs][:user][:profile_image_url_https]
   end
-  if attrs.include?(:extended_entities)
-    attachment[:thumb_url] = attrs[:extended_entities][:media].first
+  if attrs[:entities][:media]
+    attachment[:thumb_url] = attrs[:entities][:media].first[:media_url_https]
   end
   attachment
-end
-
-def fetch_html(url)
-  URI.open(URI.encode(url), ssl_verify_mode: OpenSSL::SSL::VERIFY_NONE) do |f|
-    return Nokogiri::HTML.parse(f)
-  end
 end
 
 def gen_medialink_structure(urls)
@@ -105,12 +88,4 @@ def gen_medialink_structure(urls)
     end
   end.compact
   [main_text_parts, sub_texts, attachments]
-end
-
-def gen_apple_music_attachment(url)
-  # TODO
-end
-
-def gen_odesli_attachment(url)
-  # TODO
 end
