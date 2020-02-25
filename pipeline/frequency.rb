@@ -3,9 +3,9 @@
 require "redis"
 require "time"
 
-def frequency_pipeline(tweets, logger: nil)
-  min_tweets = tweets.map { |t| Frequency::MinTweet.from_tweet(t) }
-  redis = Frequency::MinTweetRedis.new(Redis.new(url: ENV["REDIS_URL"]))
+def frequency_pipeline(tweets, redis:, logger: nil)
+  min_tweets = tweets.map { |t| Frequency::MinTweet.from_tweet(t[:attrs]) }
+  redis = Frequency::MinTweetRedis.new(redis)
 
   recent_ids = redis.restore(0...5, use_keys: [:id]).map(&:id)
   stop_idx = min_tweets.find_index { |t| recent_ids.include?(t.id) }
