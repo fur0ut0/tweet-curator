@@ -9,7 +9,7 @@ require "redis"
 require_relative "lib/twitter_util"
 
 require_relative "pipeline/frequency"
-require_relative "pipeline/medialink"
+require_relative "pipeline/mediainfo"
 
 def main
   pipeline_name, options = parse_args(ARGV)
@@ -33,17 +33,21 @@ def main
 
   json = Pathname.new(options[:serialize]) if options[:serialize]
   if json&.file?
-    tweets = JSON.parse(json.read)
+    tweets = JSON.parse(json.read, symbolize_names: true)
   else
     since_id = redis&.get("since_id")
     tweets = TwitterUtil.fetch_timeline(twitter_client, since_id).map(&:to_h)
     redis&.set("since_id", tweets.first&.[](:attrs)[:id])
+    # NOTE: For testing, using specific tweets is recommended
+    #tweets = [
+    #  twitter_client.status(id),
+    #].map(&:to_h)
     json&.write(tweets.to_json)
   end
 
   case pipeline_name
-  when "medialink"
-    call_without_abort(logger: logger) { medialink_pipeline(tweets, slack_webhook: webhook) }
+  when "mediainfo"
+    call_without_abort(logger: logger) { mediainfo_pipeline(tweets, slack_webhook: webhook) }
   when "frequency"
     call_without_abort(logger: logger) { frequency_pipeline(tweets, redis: redis) }
   else
