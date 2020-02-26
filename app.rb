@@ -3,7 +3,6 @@ require "pathname"
 require "optparse"
 require "logger"
 
-require "twitter"
 require "redis"
 
 require_relative "lib/twitter_util"
@@ -22,29 +21,25 @@ def main
 
   logger = Logger.new($stderr, progname: "TweetCurator")
 
-  twitter_client = TwitterUtil::RestClient.create({
-    consumer_key: ENV.fetch("TWITTER_CONSUMER_KEY"),
-    consumer_secret: ENV.fetch("TWITTER_CONSUMER_SECRET"),
-    access_token: ENV.fetch("TWITTER_ACCESS_TOKEN"),
-    access_token_secret: ENV.fetch("TWITTER_ACCESS_TOKEN_SECRET"),
-  })
-
-  redis = Redis.new(url: ENV.fetch("REDIS_URL"))
-  webhook = SlackUtil::Webhook.new(ENV.fetch("SLACK_WEBHOOK_URL"))
+  twitter_client = create_twitter_client
+  redis = create_redis_client
+  webhook = create_slack_webhook
 
   json = Pathname.new(options[:serialize]) if options[:serialize]
   if json&.file?
     tweets = JSON.parse(json.read, symbolize_names: true)
   else
     if !options[:ids].empty?
-      tweets = options[:ids].map { |id| twitter_client.status(id.to_i).to_h }
+      tweets = options[:ids].map { |id| twitter_client.status(id.to_i, tweet_mode: "extended") }
     else
       since_id = redis&.get("since_id")
-      tweets = TwitterUtil::Timeline.fetch(twitter_client, since_id).map(&:to_h)
+      tweets = twitter_client.home_timeline(since_id: since_id, tweet_mode: "extended")
       redis&.set("since_id", tweets.first&.[](:attrs)[:id])
     end
     json&.write(tweets.to_json)
   end
+
+  p tweets
 
   case pipeline_name
   when "mediainfo"
@@ -86,6 +81,23 @@ def parse_args(args)
   raise "No pipiline name specified" unless pipeline_name
 
   [pipeline_name, options]
+end
+
+def create_twitter_client
+  TwitterUtil::Client.new(
+    consumer_key: ENV.fetch("TWITTER_CONSUMER_KEY"),
+    consumer_secret: ENV.fetch("TWITTER_CONSUMER_SECRET"),
+    access_token: ENV.fetch("TWITTER_ACCESS_TOKEN"),
+    access_token_secret: ENV.fetch("TWITTER_ACCESS_TOKEN_SECRET"),
+  )
+end
+
+def create_redis_client
+  Redis.new(url: ENV.fetch("REDIS_URL"))
+end
+
+def create_slack_webhook
+  SlackUtil::Webhook.new(ENV.fetch("SLACK_WEBHOOK_URL"))
 end
 
 if $0 == __FILE__
