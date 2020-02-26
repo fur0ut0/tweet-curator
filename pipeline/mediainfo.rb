@@ -61,8 +61,6 @@ class Mediainfo
     @types = []
     @links = []
 
-    p tweet
-
     @types << "Now playing" if /nowplaying/i =~ tweet[:attrs][:text]
 
     urls = tweet[:attrs][:entities][:urls].uniq { |url| url[:expanded_url] }
