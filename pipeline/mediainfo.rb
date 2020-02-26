@@ -48,7 +48,10 @@ def gen_twitter_attachment(tweet)
     attachment[:footer_icon] = tweet[:attrs][:user][:profile_image_url_https]
   end
   if attrs[:entities][:media]
-    attachment[:thumb_url] = attrs[:entities][:media].first[:media_url_https]
+    url = attrs[:entities][:media].first[:media_url_https]
+    # Use resized image because the thumbnail won't show up if an image is too large
+    url += "?name=thumb" if URI.parse(url).host == "pbs.twimg.com"
+    attachment[:thumb_url] = url
   end
   attachment
 end
