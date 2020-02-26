@@ -4,8 +4,6 @@ source :rubygems
 
 gem "twitter"
 gem "redis"
-gem "slack-ruby-client"
-gem "nokogiri"
 
 group :development, :test do
   gem "pry"
