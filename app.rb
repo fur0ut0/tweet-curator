@@ -23,14 +23,14 @@ def main
   logger = Logger.new($stderr, progname: "TweetCurator")
 
   twitter_client = TwitterUtil::RestClient.create({
-    consumer_key: ENV["TWITTER_CONSUMER_KEY"],
-    consumer_secret: ENV["TWITTER_CONSUMER_SECRET"],
-    access_token: ENV["TWITTER_ACCESS_TOKEN"],
-    access_token_secret: ENV["TWITTER_ACCESS_TOKEN_SECRET"],
+    consumer_key: ENV.fetch("TWITTER_CONSUMER_KEY"),
+    consumer_secret: ENV.fetch("TWITTER_CONSUMER_SECRET"),
+    access_token: ENV.fetch("TWITTER_ACCESS_TOKEN"),
+    access_token_secret: ENV.fetch("TWITTER_ACCESS_TOKEN_SECRET"),
   })
 
-  redis = Redis.new(url: ENV["REDIS_URL"])
-  webhook = SlackUtil::Webhook.new(ENV["SLACK_WEBHOOK_URL"])
+  redis = Redis.new(url: ENV.fetch("REDIS_URL"))
+  webhook = SlackUtil::Webhook.new(ENV.fetch("SLACK_WEBHOOK_URL"))
 
   json = Pathname.new(options[:serialize]) if options[:serialize]
   if json&.file?
@@ -73,8 +73,12 @@ def parse_args(args)
   opt_parser = OptionParser.new do |p|
     p.banner = "usage: #{File.basename($0)} [options] pipeline_name"
     p.on("-t", "--test", "use local dotenv config")
-    p.on("-s JSON", "--serialize=JSON", "if exists, deserialize tweets from file; otherwise serialize tweets to file")
-    p.on("-i TWEET_ID", "--id=TWEET_ID", "tweet id to fetch instead of timeline; can be specified multiple times") { |id| options[:ids] << Integer(id.to_i) }
+    p.on("-s JSON", "--serialize=JSON",
+         "if exists, deserialize tweets from file; otherwise serialize tweets to file")
+    p.on("-i TWEET_ID", "--id=TWEET_ID",
+         "tweet id to fetch instead of timeline; can be specified multiple times") do |id|
+      options[:ids] << Integer(id.to_i)
+    end
   end
   opt_parser.parse!(args, into: options)
 
