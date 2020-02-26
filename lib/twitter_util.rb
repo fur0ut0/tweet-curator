@@ -1,56 +1,78 @@
-require "twitter"
+require "oauth"
+require "json"
 
 module TwitterUtil
-  module RestClient
-    # Create Twitter REST client
-    # @return [Twitter::REST::Client]
-    def self.create(consumer_key:, consumer_secret:,
-                    access_token:, access_token_secret:)
-      Twitter::REST::Client.new do |config|
-        config.consumer_key = consumer_key
-        config.consumer_secret = consumer_secret
-        config.access_token = access_token
-        config.access_token_secret = access_token_secret
-      end
-    end
-  end
-
   module Timeline
     MAX_AVAILABLE = 800
     MAX_PER_REQUEST = 200
+  end
 
-    # Fetch twitter home timeline
-    # @param twitter_client [Twitter::REST::Client] Twitter client
-    # @param since_id [Integer] Returns only statuses with an ID greater than (that is, more recent than) the specified ID.
-    # @return [Array<Twitter::Tweet>]
-    def self.fetch(twitter_client, since_id = nil)
+  class Client
+    API_BASE_URL = "https://api.twitter.com"
+    API_VERSION = "1.1"
+
+    def initialize(consumer_key:, consumer_secret:,
+                   access_token:, access_token_secret:)
+      @consumer = OAuth::Consumer.new(consumer_key, consumer_secret,
+                                      site: API_BASE_URL)
+      @token = OAuth::AccessToken.new(@consumer, access_token, access_token_secret)
+    end
+
+    def home_timeline(options = {})
+      since_id = Integer(options[:since_id])
       max_id = nil
       total_tweets = []
-      (MAX_AVAILABLE / MAX_AVAILABLE).ceil.times do |i|
-        opts = { count: MAX_PER_REQUEST, include_rts: true }
-        opts[:max_id] = max_id if max_id
-        opts[:since_id] = since_id if since_id
-        tweets = twitter_client.home_timeline(opts)
+
+      (Timeline::MAX_AVAILABLE / Timeline::MAX_PER_REQUEST).ceil.times do |i|
+        params = {
+          count: Timeline::MAX_PER_REQUEST,
+          include_rts: true,
+        }
+        params[:max_id] = max_id if max_id
+        params[:since_id] = since_id if since_id
+        params[:tweet_mode] = options[:tweet_mode] if options[:tweet_mode]
+        response = get("/statuses/home_timeline.json", params)
+
+        tweets = parse(response)
         break if tweets.empty?
 
-        last_id = tweets.last.attrs[:id]
+        tweets.map! { |t| compose(t) }
+        last_id = tweets.last[:attrs][:id]
         tweets.shift if max_id
         max_id = last_id
 
         total_tweets += tweets
-        break if tweets.size < MAX_PER_REQUEST
+        break if tweets.size < Timeline::MAX_PER_REQUEST
       end
+
       total_tweets
     end
-  end
-end
 
-module Twitter
-  class Tweet
-    def to_h
+    def status(id, options = {})
+      params = { id: id }
+      params[:tweet_mode] = options[:tweet_mode] if options[:tweet_mode]
+      response = get("/statuses/show.json", params)
+      tweet = parse(response)
+      compose(tweet)
+    end
+
+    private
+
+    def get(entrypoint, params = {})
+      url = "#{API_BASE_URL}/#{API_VERSION}" + entrypoint
+      url += "?" + Hash[params.sort].map { |k, v| "#{k}=#{v}" }.join("&") unless params.empty?
+      @token.get(url)
+    end
+
+    def parse(response)
+      JSON.parse(response.body, symbolize_names: true)
+    end
+
+    def compose(tweet)
+      url = "https://twitter.com/#{tweet[:user][:screen_name]}/status/#{tweet[:id]}"
       {
+        attrs: tweet,
         url: url,
-        attrs: attrs,
       }
     end
   end

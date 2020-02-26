@@ -40,13 +40,14 @@ def gen_twitter_attachment(tweet)
     author_link: tweet[:url],
     author_icon: attrs[:user][:profile_image_url_https],
     color: "#00acee",
-    text: attrs[:text],
+    text: attrs[:full_text] || attrs[:text],
     ts: Time.parse(attrs[:created_at]).to_i,
   }
   if tweet[:attrs][:retweeted_status]
     attachment[:footer] = "Retweeted by #{gen_name.call(tweet[:attrs])}"
     attachment[:footer_icon] = tweet[:attrs][:user][:profile_image_url_https]
   end
+  p attrs[:entities][:media]
   if attrs[:entities][:media]
     url = attrs[:entities][:media].first[:media_url_https]
     # Use resized image because the thumbnail won't show up if an image is too large
@@ -64,7 +65,7 @@ class Mediainfo
     @types = []
     @links = []
 
-    @types << "Now playing" if /nowplaying/i =~ tweet[:attrs][:text]
+    @types << "Now playing" if /nowplaying/i =~ (tweet[:attrs][:full_text] || tweet[:attrs][:text])
 
     urls = tweet[:attrs][:entities][:urls].uniq { |url| url[:expanded_url] }
     urls.each do |url|
