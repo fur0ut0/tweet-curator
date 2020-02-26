@@ -35,13 +35,13 @@ def main
   if json&.file?
     tweets = JSON.parse(json.read, symbolize_names: true)
   else
-    since_id = redis&.get("since_id")
-    tweets = TwitterUtil.fetch_timeline(twitter_client, since_id).map(&:to_h)
-    redis&.set("since_id", tweets.first&.[](:attrs)[:id])
-    # NOTE: For testing, using specific tweets is recommended
-    #tweets = [
-    #  twitter_client.status(id),
-    #].map(&:to_h)
+    if !options[:ids].empty?
+      tweets = options[:ids].map { |id| twitter_client.status(id.to_i).to_h }
+    else
+      since_id = redis&.get("since_id")
+      tweets = TwitterUtil.fetch_timeline(twitter_client, since_id).map(&:to_h)
+      redis&.set("since_id", tweets.first&.[](:attrs)[:id])
+    end
     json&.write(tweets.to_json)
   end
 
@@ -68,11 +68,12 @@ def call_without_abort(logger: nil, &block)
 end
 
 def parse_args(args)
-  options = {}
+  options = { ids: [] }
   opt_parser = OptionParser.new do |p|
     p.banner = "usage: #{File.basename($0)} [options] pipeline_name"
     p.on("-t", "--test", "use local dotenv config")
     p.on("-s JSON", "--serialize=JSON", "if exists, deserialize tweets from file; otherwise serialize tweets to file")
+    p.on("-i TWEET_ID", "--id=TWEET_ID", "tweet id to fetch instead of timeline; can be specified multiple times") { |id| options[:ids] << Integer(id.to_i) }
   end
   opt_parser.parse!(args, into: options)
 
