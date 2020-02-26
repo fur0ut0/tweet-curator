@@ -39,8 +39,6 @@ def main
     json&.write(tweets.to_json)
   end
 
-  p tweets
-
   case pipeline_name
   when "mediainfo"
     call_without_abort(logger: logger) { mediainfo_pipeline(tweets, slack_webhook: webhook) }

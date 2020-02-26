@@ -47,7 +47,6 @@ def gen_twitter_attachment(tweet)
     attachment[:footer] = "Retweeted by #{gen_name.call(tweet[:attrs])}"
     attachment[:footer_icon] = tweet[:attrs][:user][:profile_image_url_https]
   end
-  p attrs[:entities][:media]
   if attrs[:entities][:media]
     url = attrs[:entities][:media].first[:media_url_https]
     # Use resized image because the thumbnail won't show up if an image is too large
