@@ -81,6 +81,9 @@ class Mediainfo
       when "open.spotify.com"
         @types << "Spotify"
         @links << url[:url]
+      when "music.amazon.co.jp"
+        @types << "Amazon Music"
+        @links << url[:url]
       end
     end
   end
