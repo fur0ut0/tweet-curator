@@ -19,7 +19,7 @@ module TwitterUtil
     end
 
     def home_timeline(options = {})
-      since_id = Integer(options[:since_id])
+      since_id = Integer(options[:since_id]) if options.include?(:since_id) && options[:since_id]
       max_id = nil
       total_tweets = []
 
