@@ -71,19 +71,19 @@ class Mediainfo
       case URI.parse(url[:expanded_url]).host
       when "song.link", "album.link", "odesli.co"
         @types << "Odesli"
-        @links << url[:url]
+        @links << url[:expanded_url]
       when "youtube.com", "youtu.be"
         @types << "Youtube"
-        @links << url[:url]
+        @links << url[:expanded_url]
       when "music.apple.com"
         @types << "Apple Music"
-        @links << url[:url]
+        @links << url[:expanded_url]
       when "open.spotify.com"
         @types << "Spotify"
-        @links << url[:url]
+        @links << url[:expanded_url]
       when "music.amazon.co.jp"
         @types << "Amazon Music"
-        @links << url[:url]
+        @links << url[:expanded_url]
       end
     end
   end
