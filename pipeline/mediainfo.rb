@@ -84,6 +84,9 @@ class Mediainfo
       when "music.amazon.co.jp"
         @types << "Amazon Music"
         @links << url[:expanded_url]
+      when "music.line.me"
+        @types << "LINE MUSIC"
+        @links << url[:expanded_url]
       end
     end
   end
