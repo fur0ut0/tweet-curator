@@ -87,10 +87,10 @@ class Mediainfo
       when "music.line.me"
         @types << "LINE MUSIC"
         @links << url[:expanded_url]
-      when "hatenablog.com"
+      when /.*\.hatenablog\.com/
         @types << "Hatena blog"
         @links << url[:expanded_url]
-      when "note.mu"
+      when "note.com"
         @types << "note"
         @links << url[:expanded_url]
       end
