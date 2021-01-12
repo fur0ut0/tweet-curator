@@ -69,11 +69,14 @@ class Mediainfo
     urls = tweet[:attrs][:entities][:urls].uniq { |url| url[:expanded_url] }
     urls.each do |url|
       case URI.parse(url[:expanded_url]).host
-      when "song.link", "album.link", "odesli.co"
-        @types << "Odesli"
-        @links << url[:expanded_url]
       when "youtube.com", "youtu.be"
         @types << "Youtube"
+        @links << url[:expanded_url]
+      when "nicovideo.jp"
+        @types << "NicoNico"
+        @links << url[:expanded_url]
+      when "song.link", "album.link", "odesli.co"
+        @types << "Odesli"
         @links << url[:expanded_url]
       when "music.apple.com"
         @types << "Apple Music"
@@ -89,6 +92,9 @@ class Mediainfo
         @links << url[:expanded_url]
       when /.*\.hatenablog\.com/
         @types << "Hatena blog"
+        @links << url[:expanded_url]
+      when "anond.hatelabo.jp"
+        @types << "Hatelabo AnonymousDiary"
         @links << url[:expanded_url]
       when "note.com"
         @types << "note"
