@@ -77,16 +77,16 @@ class Mediainfo
         @links << url[:expanded_url]
       when "song.link", "album.link", "odesli.co"
         @types << "Odesli"
-        @links << url[:expanded_url]
+        @links << "/songlink " + url[:expanded_url]
       when "music.apple.com"
         @types << "Apple Music"
         @links << url[:expanded_url]
       when "open.spotify.com"
         @types << "Spotify"
-        @links << url[:expanded_url]
+        @links << "/songlink " + url[:expanded_url]
       when "music.amazon.co.jp"
         @types << "Amazon Music"
-        @links << url[:expanded_url]
+        @links << "/songlink " + url[:expanded_url]
       when "music.line.me"
         @types << "LINE MUSIC"
         @links << url[:expanded_url]
