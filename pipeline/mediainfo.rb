@@ -42,6 +42,7 @@ def gen_twitter_attachment(tweet)
     color: "#00acee",
     text: attrs[:full_text] || attrs[:text],
     ts: Time.parse(attrs[:created_at]).to_i,
+    mrkdwn_in: [],
   }
   if tweet[:attrs][:retweeted_status]
     attachment[:footer] = "Retweeted by #{gen_name.call(tweet[:attrs])}"
