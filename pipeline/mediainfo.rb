@@ -3,13 +3,14 @@
 require "time"
 
 require_relative "../lib/slack_util"
+require_relative "../lib/api"
 
 # @param tweets [Array<Hash>] tweets to process
 # @param slack_webhook [SlackUtil::Webhook] Slack webhook URL
-def mediainfo_pipeline(tweets, slack_webhook:)
+def mediainfo_pipeline(tweets, slack_webhook:, odesli_api_key:)
   # traverse from old ones
   tweets.reverse.each do |tweet|
-    info = Mediainfo.new(tweet)
+    info = Mediainfo.new(tweet, odesli_api_key)
     next unless info.mediainfo?
 
     attachments = [gen_twitter_attachment(tweet)]
@@ -60,8 +61,12 @@ end
 class Mediainfo
   attr_reader :types, :links
 
+  ODESLI_API = "https://api.song.link/v1-alpha.1/links"
+
   # @param tweet [Hash] hased tweet data
-  def initialize(tweet)
+  def initialize(tweet, odesli_api_key)
+    @odesli_api_key = odesli_api_key
+
     @types = []
     @links = []
 
@@ -78,16 +83,28 @@ class Mediainfo
         @links << url[:expanded_url]
       when "song.link", "album.link", "odesli.co"
         @types << "Odesli"
-        @links << "/songlink " + url[:expanded_url]
+        src = url[:expanded_url]
+        if sub = get_apple_music_url(src)
+          src += " => " + sub
+        end
+        @links << src
       when "music.apple.com"
         @types << "Apple Music"
         @links << url[:expanded_url]
       when "open.spotify.com"
         @types << "Spotify"
-        @links << "/songlink " + url[:expanded_url]
+        src = url[:expanded_url]
+        if sub = get_apple_music_url(src)
+          src += " => " + sub
+        end
+        @links << src
       when "music.amazon.co.jp"
         @types << "Amazon Music"
-        @links << "/songlink " + url[:expanded_url]
+        src = url[:expanded_url]
+        if sub = get_apple_music_url(src)
+          src += " => " + sub
+        end
+        @links << src
       when "music.line.me"
         @types << "LINE MUSIC"
         @links << url[:expanded_url]
@@ -105,4 +122,36 @@ class Mediainfo
   end
 
   def mediainfo?; !@types.empty?; end
+
+  private
+
+  def get_apple_music_url(media_url)
+    params = {
+      key: @odesli_api_key,
+      url: media_url,
+      userCountry: "JP",
+    }
+
+    retry_count = 3
+    begin
+      result = API.call(ODESLI_API, params)
+    rescue HTTPRetriableError => e
+      return nil if retry_count <= 0
+      retry_count -= 1
+      retry
+    rescue => e
+      return nil
+    end
+
+    links = result["linksByPlatform"]
+    return nil unless links
+
+    a = links["appleMusic"]
+    return a["url"] if a
+
+    i = links["itunes"]
+    return i["url"] if i
+
+    nil
+  end
 end

@@ -41,7 +41,7 @@ def main
 
   case pipeline_name
   when "mediainfo"
-    call_without_abort(logger: logger) { mediainfo_pipeline(tweets, slack_webhook: webhook) }
+    call_without_abort(logger: logger) { mediainfo_pipeline(tweets, slack_webhook: webhook, odesli_api_key: ENV["ODESLI_API_KEY"]) }
   when "frequency"
     call_without_abort(logger: logger) { frequency_pipeline(tweets, redis: redis) }
   else
