@@ -81,6 +81,9 @@ class Mediainfo
       when "nicovideo.jp", "nico.ms"
         @types << "NicoNico"
         @links << url[:expanded_url]
+      when "video.twimg.com"
+        @types << "Twitter Video"
+        @links << url[:expanded_url]
       when "song.link", "album.link", "odesli.co"
         @types << "Odesli"
         src = url[:expanded_url]
