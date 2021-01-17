@@ -108,6 +108,9 @@ class Mediainfo
       when "music.line.me"
         @types << "LINE MUSIC"
         @links << url[:expanded_url]
+      when /.*soundcloud.*/
+        @types << "SoundCloud"
+        @links << url[:expanded_url]
       when "lnk.to"
         @types << "linkfire"
         @links << url[:expanded_url]
