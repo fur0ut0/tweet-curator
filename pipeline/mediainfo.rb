@@ -88,7 +88,7 @@ class Mediainfo
           src += " => " + sub
         end
         @links << src
-      when "music.apple.com"
+      when /.*music\.apple\.com/
         @types << "Apple Music"
         @links << url[:expanded_url]
       when "open.spotify.com"
