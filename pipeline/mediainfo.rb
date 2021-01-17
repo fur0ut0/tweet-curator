@@ -78,7 +78,7 @@ class Mediainfo
       when "youtube.com", "youtu.be"
         @types << "Youtube"
         @links << url[:expanded_url]
-      when "nicovideo.jp"
+      when "nicovideo.jp", "nico.ms"
         @types << "NicoNico"
         @links << url[:expanded_url]
       when "song.link", "album.link", "odesli.co"
