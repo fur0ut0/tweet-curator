@@ -72,6 +72,20 @@ class Mediainfo
 
     @types << "Now playing" if /nowplaying/i =~ (tweet[:attrs][:full_text] || tweet[:attrs][:text])
 
+    # Twitter video
+    if ex = tweet[:attrs][:extended_entities]
+      if media = ex[:media]
+        mp4 = media.first[:video_info][:variants]
+          .filter { |x| x[:content_type] =~ /mp4/ }
+          .sort_by { |x| x[:bitrate] }
+          .last
+        if mp4
+          @types << "Twitter Video"
+          @links << mp4[:url]
+        end
+      end
+    end
+
     urls = tweet[:attrs][:entities][:urls].uniq { |url| url[:expanded_url] }
     urls.each do |url|
       case URI.parse(url[:expanded_url]).host
@@ -80,9 +94,6 @@ class Mediainfo
         @links << url[:expanded_url]
       when "nicovideo.jp", "nico.ms"
         @types << "NicoNico"
-        @links << url[:expanded_url]
-      when "video.twimg.com"
-        @types << "Twitter Video"
         @links << url[:expanded_url]
       when "song.link", "album.link", "odesli.co"
         @types << "Odesli"
