@@ -73,17 +73,10 @@ class Mediainfo
     @types << "Now playing" if /nowplaying/i =~ (tweet[:attrs][:full_text] || tweet[:attrs][:text])
 
     # Twitter video
-    if ex = tweet[:attrs][:extended_entities]
-      if media = ex[:media]
-        mp4 = media.first[:video_info][:variants]
-          .filter { |x| x[:content_type] =~ /mp4/ }
-          .sort_by { |x| x[:bitrate] }
-          .last
-        if mp4
-          @types << "Twitter Video"
-          @links << mp4[:url]
-        end
-      end
+    mp4_url = get_mp4_url(tweet)
+    if mp4_url
+      @types << "Twitter Video"
+      @links << mp4_url
     end
 
     urls = tweet[:attrs][:entities][:urls].uniq { |url| url[:expanded_url] }
@@ -147,6 +140,27 @@ class Mediainfo
   def mediainfo?; !@types.empty?; end
 
   private
+
+  def get_mp4_url(tweet)
+    extended_entities = tweet[:attrs][:extended_entities]
+    return nil unless extended_entities
+
+    media = extended_entities[:media]
+    return nil unless media && !media.empty?
+
+    video_info = media.first[:video_info]
+    return nil unless video_info
+
+    variants = video_info[:variants]
+    return nil unless variants
+
+    mp4 = variants.filter { |x| x[:content_type] =~ /mp4/ }
+                  .sort_by { |x| x[:bitrate] }
+                  .last
+    return nil if mp4.empty?
+
+    mp4[:url]
+  end
 
   def get_apple_music_url(media_url)
     params = {
