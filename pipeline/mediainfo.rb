@@ -172,7 +172,7 @@ class Mediainfo
     retry_count = 3
     begin
       result = API.call(ODESLI_API, params)
-    rescue HTTPRetriableError => e
+    rescue Net::HTTPRetriableError => e
       return nil if retry_count <= 0
       retry_count -= 1
       retry
