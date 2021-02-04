@@ -13,23 +13,15 @@ def mediainfo_pipeline(tweets, slack_webhook:, odesli_api_key:)
     info = Mediainfo.new(tweet, odesli_api_key)
     next unless info.mediainfo?
 
-    attachments = [gen_twitter_attachment(tweet)]
-
     slack_webhook.post({
-      text: "*#{info.types.join(", ")}*",
-      attachments: attachments,
+      text: info.links.join("
+"),
+      attachments: [gen_slack_attachment(tweet)],
     })
-
-    info.links.each do |link|
-      slack_webhook.post({
-        text: link,
-        unfurl_links: true,
-      })
-    end
   end
 end
 
-def gen_twitter_attachment(tweet)
+def gen_slack_attachment(tweet)
   attrs = tweet[:attrs].fetch(:retweeted_status, tweet[:attrs])
 
   gen_name = Proc.new do |attrs|
@@ -59,7 +51,7 @@ def gen_twitter_attachment(tweet)
 end
 
 class Mediainfo
-  attr_reader :types, :links
+  attr_reader :links
 
   ODESLI_API = "https://api.song.link/v1-alpha.1/links"
 
@@ -67,77 +59,35 @@ class Mediainfo
   def initialize(tweet, odesli_api_key)
     @odesli_api_key = odesli_api_key
 
-    @types = []
+    @is_media = false
+
     @links = []
 
-    @types << "Now playing" if /nowplaying/i =~ (tweet[:attrs][:full_text] || tweet[:attrs][:text])
+    @is_media = true if /nowplaying/i =~ (tweet[:attrs][:full_text] || tweet[:attrs][:text])
 
     # Twitter video
-    mp4_url = get_mp4_url(tweet)
-    if mp4_url
-      @types << "Twitter Video"
+    if mp4_url = get_mp4_url(tweet)
+      @is_media = true
       @links << mp4_url
     end
 
-    urls = tweet[:attrs][:entities][:urls].uniq { |url| url[:expanded_url] }
-    urls.each do |url|
-      case URI.parse(url[:expanded_url]).host
-      when "youtube.com", "youtu.be"
-        @types << "Youtube"
-        @links << url[:expanded_url]
-      when "nicovideo.jp", "nico.ms"
-        @types << "NicoNico"
-        @links << url[:expanded_url]
-      when "song.link", "album.link", "odesli.co"
-        @types << "Odesli"
-        src = url[:expanded_url]
-        if sub = get_apple_music_url(src)
-          src += " => " + sub
+    urls = tweet[:attrs][:entities][:urls].map { |url| url[:expanded_url] }
+    @is_media = true unless urls.empty?
+    urls.map! do |url|
+      case URI.parse(url).host
+      when "song.link", "album.link", "open.spotify.com", "music.amazon.co.jp"
+        # convert into Apple Music link
+        if sub = get_apple_music_url(url)
+          url += " => " + sub
         end
-        @links << src
-      when /.*music\.apple\.com/
-        @types << "Apple Music"
-        @links << url[:expanded_url]
-      when "open.spotify.com"
-        @types << "Spotify"
-        src = url[:expanded_url]
-        if sub = get_apple_music_url(src)
-          src += " => " + sub
-        end
-        @links << src
-      when "music.amazon.co.jp"
-        @types << "Amazon Music"
-        src = url[:expanded_url]
-        if sub = get_apple_music_url(src)
-          src += " => " + sub
-        end
-        @links << src
-      when "music.line.me"
-        @types << "LINE MUSIC"
-        @links << url[:expanded_url]
-      when /.*soundcloud.*/
-        @types << "SoundCloud"
-        @links << url[:expanded_url]
-      when "lnk.to"
-        @types << "linkfire"
-        @links << url[:expanded_url]
-      when "linkco.re"
-        @types << "LinkCore"
-        @links << url[:expanded_url]
-      when /.*\.hatenablog\.com/
-        @types << "Hatena blog"
-        @links << url[:expanded_url]
-      when "anond.hatelabo.jp"
-        @types << "Hatelabo AnonymousDiary"
-        @links << url[:expanded_url]
-      when "note.com"
-        @types << "note"
-        @links << url[:expanded_url]
       end
+      url
     end
+
+    @links.concat(urls)
   end
 
-  def mediainfo?; !@types.empty?; end
+  def mediainfo?; @is_media; end
 
   private
 
