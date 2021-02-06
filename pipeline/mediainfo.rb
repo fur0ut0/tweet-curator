@@ -16,6 +16,7 @@ def mediainfo_pipeline(tweets, slack_webhook:, odesli_api_key:)
     slack_webhook.post({
       text: info.links.join("
 "),
+      unfurl_links: true,
       attachments: [gen_slack_attachment(tweet)],
     })
   end
