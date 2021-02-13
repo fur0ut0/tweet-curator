@@ -73,19 +73,24 @@ class Mediainfo
     end
 
     urls = tweet[:attrs][:entities][:urls].map { |url| url[:expanded_url] }
-    @is_media = true unless urls.empty?
     urls.map! do |url|
       case URI.parse(url).host
-      when "song.link", "album.link", "open.spotify.com", "music.amazon.co.jp"
+      when "song.link", "album.link", "open.spotify.com", "music.amazon.co.jp", /.*music\.apple\.com/
         # convert into Apple Music link
         if sub = get_apple_music_url(url)
-          url += " => " + sub
+          url + " => " + sub
+        else
+          url
         end
+      when /.*soundcloud.*/, "linkco.re", "youtu.be", "youtube.com", "nico.ms", "nicovideo.jp"
+        url
+      else
+        nil
       end
-      url
     end
 
-    @links.concat(urls)
+    @links.concat(urls.compact)
+    @is_media = true unless @links.empty?
   end
 
   def mediainfo?; @is_media; end
