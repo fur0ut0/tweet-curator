@@ -1,6 +1,6 @@
 ruby "2.7.1"
 
-source :rubygems
+source "https://rubygems.org"
 
 gem "oauth"
 gem "redis"
