@@ -13,6 +13,8 @@ def mediainfo_pipeline(tweets, slack_webhook:, odesli_api_key:)
     info = Mediainfo.new(tweet, odesli_api_key)
     next unless info.mediainfo?
 
+    attachments = tweet[:attrs][:user][:protected] ? [gen_slack_attachment(tweet)] : []
+
     slack_webhook.post({
       text: "`" + tweet[:attrs][:id].to_s + "`
 " + tweet[:url] + "
@@ -20,6 +22,7 @@ def mediainfo_pipeline(tweets, slack_webhook:, odesli_api_key:)
 "),
       unfurl_links: true,
       mrkdwn: true,
+      attachments: attachments,
     })
   end
 end
