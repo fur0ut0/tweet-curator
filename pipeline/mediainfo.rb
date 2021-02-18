@@ -72,12 +72,6 @@ class Mediainfo
 
     @is_media = true if /nowplaying/i =~ (tweet[:attrs][:full_text] || tweet[:attrs][:text])
 
-    # Twitter video
-    if mp4_url = get_mp4_url(tweet)
-      @is_media = true
-      @links << mp4_url
-    end
-
     urls = tweet[:attrs][:entities][:urls].map { |url| url[:expanded_url] }
     urls.map! do |url|
       case URI.parse(url).host
@@ -88,7 +82,7 @@ class Mediainfo
         else
           url
         end
-      when /.*soundcloud.*/, "linkco.re", "youtu.be", "youtube.com", "nico.ms", "nicovideo.jp"
+      when /.*soundcloud.*/, "linkco.re"
         url
       else
         nil
