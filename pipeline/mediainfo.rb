@@ -82,7 +82,7 @@ class Mediainfo
         else
           url
         end
-      when /.*soundcloud.*/, "linkco.re"
+      when /.*soundcloud.*/, "linkco.re", "big-up.style"
         url
       else
         nil
