@@ -11,11 +11,11 @@ module TweetCurator
 
    # tweet fetcher
    class TweetFetcher
-      def initialize(env_fetcher)
-         @api = TwitterAPI.new(consumer_key: env_fetcher.fetch(:TWITTER_CONSUMER_KEY),
-                               consumer_secret: env_fetcher.fetch(:TWITTER_CONSUMER_SECRET),
-                               access_token: env_fetcher.fetch(:TWITTER_ACCESS_TOKEN),
-                               access_token_secret: env_fetcher.fetch(:TWITTER_ACCESS_TOKEN_SECRET))
+      def initialize(consumer_key:, consumer_secret:, access_token:, access_token_secret:)
+         @api = TwitterAPI.new(consumer_key: consumer_key,
+                               consumer_secret: consumer_secret,
+                               access_token: access_token,
+                               access_token_secret: access_token_secret)
       end
 
       # TODO

@@ -5,12 +5,16 @@ module TweetCurator
    class MediaTask
       FILTER_TYPES = %i[all music image video].freeze
 
-      def initialize(filter_types = ['music'], env_fetcher = nil)
-         @filter_types = filter_types.map(&:to_sym)
-         @odesli_api_key = env_fetcher&.get(:ODESLI_API_KEY)
+      def initialize(arg, slack_webhook_url:, odesli_api_key: nil)
+         # default filter type is music
+         @filter_types = (arg || 'music').split(',').map(&:to_sym)
+         @filter_types.each { |t| raise "invalid filter type: #{t}" unless FILTER_TYPES.include?(t) }
+
+         @slack_webhook_url = slack_webhook_url
+         @odesli_api_key = odesli_api_key
       end
 
-      def run(tweets, post_mode: 'slack')
+      def run(tweets)
          # TODO
       end
    end
