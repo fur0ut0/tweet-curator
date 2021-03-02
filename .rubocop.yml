@@ -1,0 +1,8 @@
+AllCops:
+   NewCops: enable
+   Exclude:
+     - 'old_app/**/*'
+
+Layout/IndentationWidth:
+   Width: 3
+
