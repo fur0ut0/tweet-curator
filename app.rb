@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'logger'
+require 'optparse'
 
 require_relative 'tweet_curator/media_task'
 require_relative 'tweet_curator/tweet_fetcher'
@@ -30,7 +31,6 @@ class App
 
    private
 
-   require 'optparse'
    OPT_PARSER = OptionParser.new do |p|
       p.banner = "usage: #{File.basename($PROGRAM_NAME)} [OPTIONS] TASK_NAME TASK_ARGS"
       p.on('--dotenv', 'use local dotenv config')
