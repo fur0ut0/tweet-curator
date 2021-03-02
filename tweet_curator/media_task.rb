@@ -3,20 +3,15 @@
 module TweetCurator
    # process media URL and post to other services
    class MediaTask
-      def initialize(*filter_mode, odesli_token: nil)
-         @filter_types = to_filter_types(filter_mode)
-         @odesli_token = odesli_token
+      FILTER_TYPES = %i[all music image video].freeze
+
+      def initialize(filter_types = ['music'], env_fetcher = nil)
+         @filter_types = filter_types.map(&:to_sym)
+         @odesli_api_key = env_fetcher&.get(:ODESLI_API_KEY)
       end
 
       def run(tweets, post_mode: 'slack')
          # TODO
-      end
-
-      private
-
-      def to_filter_types(filter_mode)
-         # TODO
-         filter_mode
       end
    end
 end

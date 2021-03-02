@@ -20,7 +20,7 @@ class App
       @env_fetcher = TweetCurator::EnvFetcher.new
       @env_fetcher.load_dotenv if @options[:dotenv]
 
-      @task = task_klass.new(*task_args)
+      @task = task_klass.new(task_args, @env_fetcher)
 
       @tweet_fetcher = TweetCurator::TweetFetcher.new(@env_fetcher)
    end

@@ -10,8 +10,13 @@ module TweetCurator
       end
 
       # get environmental variable by key
-      # @raise KeyError environmental variable is unset
       def get(key)
+         ENV[key.to_s]
+      end
+
+      # get environmental variable by key, raise if unset
+      # @raise KeyError environmental variable is unset
+      def fetch(key)
          ENV.fetch(key.to_s) { |k| raise KeyError, "unset environmental variable: #{k}" }
       end
    end
