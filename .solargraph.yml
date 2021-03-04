@@ -6,11 +6,11 @@ exclude:
 - test/**/*
 - vendor/**/*
 - ".bundle/**/*"
+- old_app/**/*
 require: []
 domains: []
 reporters:
 - rubocop
-- require_not_found
 formatter:
   rubocop:
     cops: safe
