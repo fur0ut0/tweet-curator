@@ -1,103 +1,135 @@
-require "json"
-require "pathname"
-require "optparse"
-require "logger"
+# frozen_string_literal: true
 
-require "redis"
+require 'logger'
+require 'optparse'
 
-require_relative "lib/twitter_util"
-require_relative "lib/slack_util"
+require 'redis'
 
-require_relative "pipeline/frequency"
-require_relative "pipeline/mediainfo"
+require_relative 'tweet_curator/env_fetcher'
+require_relative 'tweet_curator/media_task'
+require_relative 'tweet_curator/tweet_fetcher'
+require_relative 'tweet_curator/tweet_serializer'
 
-def main
-  pipeline_name, options = parse_args(ARGV)
+# main application
+class App
+   TASKS = %i[media].freeze
+   LIST_SINCE_ID_KEY = 'list_since_id'
+   HOME_SINCE_ID_KEY = 'home_since_id'
 
-  if options[:test]
-    require "dotenv"
-    Dotenv.load
-  end
+   def initialize(args)
+      @task_name, @options = parse_args(args)
 
-  logger = Logger.new($stderr, progname: "TweetCurator")
+      @logger = Logger.new($stderr)
+      @logger.level = Logger::DEBUG if @options[:debug]
 
-  twitter_client = create_twitter_client
-  redis = create_redis_client
-  webhook = create_slack_webhook
+      env_fetcher.load_dotenv if @options[:dotenv]
+   end
 
-  json = Pathname.new(options[:serialize]) if options[:serialize]
-  if json&.file?
-    tweets = JSON.parse(json.read, symbolize_names: true)
-  else
-    if !options[:ids].empty?
-      tweets = options[:ids].map { |id| twitter_client.status(id.to_i, tweet_mode: "extended") }
-    else
-      since_id = redis&.get("since_id")
-      tweets = twitter_client.home_timeline(since_id: since_id, tweet_mode: "extended")
-      redis&.set("since_id", tweets.first&.[](:attrs)[:id])
-    end
-    json&.write(tweets.to_json)
-  end
+   def run
+      tweets ||= tweet_serializer&.deserialize
+      tweets ||= fetch_tweets_by_mode
+      tweet_serializer&.serialize(tweets)
 
-  case pipeline_name
-  when "mediainfo"
-    call_without_abort(logger: logger) { mediainfo_pipeline(tweets, slack_webhook: webhook, odesli_api_key: ENV["ODESLI_API_KEY"]) }
-  when "frequency"
-    call_without_abort(logger: logger) { frequency_pipeline(tweets, redis: redis) }
-  else
-    raise "No such pipeline: #{pipeline_name}"
-  end
+      task.run(@options[:run_arg], tweets)
+   end
+
+   private
+
+   def fetch_tweets_by_mode
+      if (id = @options[:tweet_id])
+         [fetch_tweet(id)]
+      elsif (id = @options[:list_id])
+         fetch_list(id)
+      else
+         fetch_home
+      end
+   end
+
+   def fetch_tweet(id)
+      tweet_fetcher.fetch_tweet(id)
+   end
+
+   def fetch_list(id)
+      tweet_fetcher.fetch_list(id, since_id: redis.get(LIST_SINCE_ID_KEY)).tap do |tweets|
+         @logger.info(self.class.name) { "fetch #{tweets.size} list tweets" }
+         redis.set(LIST_SINCE_ID_KEY, tweets.first[:id]) unless tweets.empty?
+      end
+   end
+
+   def fetch_home
+      tweet_fetcher.fetch_home(since_id: redis.get(HOME_SINCE_ID_KEY)).tap do |tweets|
+         @logger.info(self.class.name) { "fetch #{tweets.size} home tweets" }
+         redis.set(HOME_SINCE_ID_KEY, tweets.first[:id]) unless tweets.empty?
+      end
+   end
+
+   OPT_PARSER = OptionParser.new do |p|
+      p.banner = "usage: #{File.basename($PROGRAM_NAME)} [OPTIONS] TASK_NAME TASK_ARGS"
+      p.on('--debug', 'set debug mode for logger')
+      p.on('--dotenv', 'use local dotenv config')
+      p.on('-H', '--home', 'fetch home timeline (default behavior)')
+      p.on('-I TWEET_ID', '--tweet_id=TWEET_ID', 'fetch specifed tweet ID')
+      p.on('-L LIST_ID', '--list_id=LIST_ID', 'fetch specified list ID')
+      p.on('-J JSON', '--json=JSON',
+           'if exists, deserialize tweets from file; otherwise serialize tweets to file')
+      p.on('-i INIT_ARG', '--init_arg=INIT_ARG', 'argument for task initialization')
+      p.on('-r RUN_ARG', '--run_arg=RUN_ARG', 'argument for task running')
+   end.freeze
+
+   def parse_args(args)
+      options = {}
+      task_args = OPT_PARSER.parse(args, into: options)
+
+      task_name = task_args.pop&.to_sym
+      raise 'no task name specified' unless task_name
+      raise "invalid task name: #{task_name}" unless TASKS.include?(task_name)
+
+      fetch_mode = %i[home tweet_id list_id].filter { |k| options.key?(k) }
+      raise "multiple tweet fetching mode specified: #{fetch_mode.join(', ')}" if fetch_mode.size > 1
+
+      [task_name, options]
+   end
+
+   def env_fetcher
+      @env_fetcher ||= TweetCurator::EnvFetcher.new
+      @env_fetcher
+   end
+
+   def tweet_fetcher
+      @tweet_fetcher ||= TweetCurator::TweetFetcher.new(
+         consumer_key: env_fetcher.fetch(:TWITTER_CONSUMER_KEY),
+         consumer_secret: env_fetcher.fetch(:TWITTER_CONSUMER_SECRET),
+         access_token: env_fetcher.fetch(:TWITTER_ACCESS_TOKEN),
+         access_token_secret: env_fetcher.fetch(:TWITTER_ACCESS_TOKEN_SECRET),
+         logger: @logger
+      )
+      @tweet_fetcher
+   end
+
+   def task
+      unless @task
+         case @task_name
+         when :media
+            @task = TweetCurator::MediaTask.new(@options[:init_arg],
+                                                logger: @logger,
+                                                slack_webhook_url: env_fetcher.fetch(:SLACK_WEBHOOK_URL),
+                                                odesli_api_key: env_fetcher.get(:ODESLI_API_KEY))
+         end
+      end
+      @task
+   end
+
+   def tweet_serializer
+      return nil if @options[:json].nil?
+
+      @tweet_serializer ||= TweetCurator::TweetSerializer.new(@options[:json], logger: @logger)
+      @tweet_serializer
+   end
+
+   def redis
+      @redis ||= Redis.new(url: env_fetcher.fetch(:REDIS_URL))
+      @redis
+   end
 end
 
-def call_without_abort(logger: nil, &block)
-  begin
-    yield
-  rescue => err
-    if logger
-      logger.error("Error: " + err.full_message)
-    else
-      puts err.full_message
-    end
-  end
-end
-
-def parse_args(args)
-  options = { ids: [] }
-  opt_parser = OptionParser.new do |p|
-    p.banner = "usage: #{File.basename($0)} [options] pipeline_name"
-    p.on("-t", "--test", "use local dotenv config")
-    p.on("-s JSON", "--serialize=JSON",
-         "if exists, deserialize tweets from file; otherwise serialize tweets to file")
-    p.on("-i TWEET_ID", "--id=TWEET_ID",
-         "tweet id to fetch instead of timeline; can be specified multiple times") do |id|
-      options[:ids] << Integer(id.to_i)
-    end
-  end
-  opt_parser.parse!(args, into: options)
-
-  pipeline_name = args.pop
-  raise "No pipiline name specified" unless pipeline_name
-
-  [pipeline_name, options]
-end
-
-def create_twitter_client
-  TwitterUtil::Client.new(
-    consumer_key: ENV.fetch("TWITTER_CONSUMER_KEY"),
-    consumer_secret: ENV.fetch("TWITTER_CONSUMER_SECRET"),
-    access_token: ENV.fetch("TWITTER_ACCESS_TOKEN"),
-    access_token_secret: ENV.fetch("TWITTER_ACCESS_TOKEN_SECRET"),
-  )
-end
-
-def create_redis_client
-  Redis.new(url: ENV.fetch("REDIS_URL"))
-end
-
-def create_slack_webhook
-  SlackUtil::Webhook.new(ENV.fetch("SLACK_WEBHOOK_URL"))
-end
-
-if $0 == __FILE__
-  main
-end
+App.new(ARGV).run if $PROGRAM_NAME == __FILE__

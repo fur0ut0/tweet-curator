@@ -1,0 +1,15 @@
+AllCops:
+   NewCops: enable
+   Exclude:
+     - 'old_app/**/*'
+     - 'vendor/**/*'
+
+Layout/IndentationWidth:
+   Width: 3
+
+Metrics/MethodLength:
+   Max: 20
+
+Style/TrailingCommaInHashLiteral:
+   EnforcedStyleForMultiline: consistent_comma
+

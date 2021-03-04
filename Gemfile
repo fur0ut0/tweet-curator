@@ -1,13 +1,15 @@
-ruby "2.7.2"
+# frozen_string_literal: true
 
-source "https://rubygems.org"
+ruby '2.7.2'
 
-gem "oauth"
-gem "redis"
+source 'https://rubygems.org'
+
+gem 'oauth'
+gem 'redis'
 
 group :development, :test do
-  gem "pry"
-  gem "dotenv"
-  gem "solargraph"
-  gem "rufo"
+   gem 'dotenv'
+   gem 'overcommit'
+   gem 'pry'
+   gem 'solargraph'
 end
