@@ -80,7 +80,7 @@ class App
       options = {}
       task_args = OPT_PARSER.parse(args, into: options)
 
-      task_name = task_args.pop&.to_sym
+      task_name = task_args.shift&.to_sym
       raise 'no task name specified' unless task_name
       raise "invalid task name: #{task_name}" unless TASKS.include?(task_name)
 
