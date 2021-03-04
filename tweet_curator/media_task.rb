@@ -45,6 +45,12 @@ module TweetCurator
                  &.fetch(:url, nil)
          end
 
+         def get_image_urls(tweet)
+            tweet.fetch(:entities, {})
+                 .fetch(:media, [])
+                 .map { |m| m[:media_url_https] }
+         end
+
          def image_url?(url)
             host = URI.parse(url).host
             IMAGE_HOST.any? { |e| host == e }
@@ -100,6 +106,9 @@ module TweetCurator
 
       def extract_media_urls(tweet)
          urls = tweet[:entities][:urls].map { |url| url[:expanded_url] }
+
+         image_urls = MediaUtil.get_image_urls(tweet)
+         urls.concat(image_urls)
 
          mp4_url = MediaUtil.get_mp4_url(tweet)
          urls << mp4_url if mp4_url
