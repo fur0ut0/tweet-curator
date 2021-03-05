@@ -96,7 +96,7 @@ module TweetCurator
             urls = extract_media_urls(tweet).filter { |url| to_handle?(url) }
             next if urls.empty?
 
-            urls.map! { |url| organize_url(url) }.compact!
+            urls = organize_urls(urls, drop_image: !tweet[:user][:protected])
             # prepend tweet URL
             urls.prepend(Util.get_tweet_url(tweet[:user][:screen_name], tweet[:id]))
 
@@ -125,15 +125,17 @@ module TweetCurator
             MediaUtil.video_url?(url) && @handling_types.include?(:video)
       end
 
-      def organize_url(url)
-         if MediaUtil.convertible_music_url?(url) && (converted = convert_music_url(url))
-            "#{url} => #{converted}"
-         elsif MediaUtil.image_url?(url)
-            # delete URL since tweet will expand images
-            nil
-         else
-            url
-         end
+      def organize_urls(urls, drop_image: true)
+         urls.map do |url|
+            if MediaUtil.convertible_music_url?(url) && (converted = convert_music_url(url))
+               "#{url} => #{converted}"
+            elsif MediaUtil.image_url?(url) && drop_image
+               # delete URL since tweet will expand images
+               nil
+            else
+               url
+            end
+         end.compact
       end
 
       def post_media_to_slack(tweet, urls)
