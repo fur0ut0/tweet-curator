@@ -96,7 +96,7 @@ module TweetCurator
             urls = extract_media_urls(tweet).filter { |url| to_handle?(url) }
             next if urls.empty?
 
-            urls.map! { |url| organize_url(url) }
+            urls.map! { |url| organize_url(url) }.compact!
             # prepend tweet URL
             urls.prepend(Util.get_tweet_url(tweet[:user][:screen_name], tweet[:id]))
 
@@ -128,6 +128,9 @@ module TweetCurator
       def organize_url(url)
          if MediaUtil.convertible_music_url?(url) && (converted = convert_music_url(url))
             "#{url} => #{converted}"
+         elsif MediaUtil.image_url?(url)
+            # delete URL since tweet will expand images
+            nil
          else
             url
          end
