@@ -157,8 +157,8 @@ module TweetCurator
          gen_name = proc { |user| "#{user[:name]} (@#{user[:screen_name]}) #{user[:protected] ? '🔒' : ''}" }
 
          attachment = {
-            author_name: gen_name.call(main_tweet),
-            author_link: Util.get_tweet_url(main_tweet[:user], main_tweet[:id]),
+            author_name: gen_name.call(main_tweet[:user]),
+            author_link: Util.get_tweet_url(main_tweet[:user][:screen_name], main_tweet[:id]),
             author_icon: main_tweet[:user][:profile_image_url_https],
             text: main_tweet[:full_text] || main_tweet[:text],
             ts: Time.parse(main_tweet[:created_at]).to_i,
