@@ -11,7 +11,7 @@ module TweetCurator
 
       IMAGE_HOST = %w[pbs.twimg.com].freeze
 
-      GENERAL_MUSIC_HOST = %w[linkco.re big-up.style].freeze
+      GENERAL_MUSIC_HOST = %w[linkco.re big-up.style nowplaying.jp].freeze
       GENERAL_MUSIC_HOST_RE = [/.*soundcloud*/].freeze
 
       CONVERTIBLE_MUSIC_HOST = %w[song.link album.link open.spotify.com music.amazon.co.jp].freeze
@@ -49,6 +49,12 @@ module TweetCurator
             tweet.fetch(:entities, {})
                  .fetch(:media, [])
                  .map { |m| m[:media_url_https] }
+         end
+
+         def nowplaying?(tweet)
+            main_tweet = tweet.fetch(:retweeted_status, tweet)
+            text = main_tweet[:full_text] || main_tweet[:text]
+            /nowplaying/i.match?(text)
          end
 
          def image_url?(url)
@@ -112,6 +118,9 @@ module TweetCurator
 
          mp4_url = MediaUtil.get_mp4_url(tweet)
          urls << mp4_url if mp4_url
+
+         # XXX: use dummy URL for Nowplaying
+         urls << 'https://nowplaying.jp' if MediaUtil.nowplaying?(tweet)
 
          @logger.debug(self.class.name) { "extract_media_urls (#{tweet[:id]}): #{urls}" }
 
