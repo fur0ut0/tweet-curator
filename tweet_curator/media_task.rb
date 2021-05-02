@@ -12,10 +12,10 @@ module TweetCurator
       IMAGE_HOST = %w[pbs.twimg.com].freeze
 
       GENERAL_MUSIC_HOST = %w[linkco.re big-up.style nowplaying.jp orcd.co].freeze
-      GENERAL_MUSIC_HOST_RE = [/.*soundcloud*/].freeze
+      GENERAL_MUSIC_HOST_RE = [/soundcloud/, /lnk\.to/].freeze
 
       CONVERTIBLE_MUSIC_HOST = %w[song.link album.link open.spotify.com music.amazon.co.jp].freeze
-      CONVERTIBLE_MUSIC_HOST_RE = [/.*music\.apple\.com/].freeze
+      CONVERTIBLE_MUSIC_HOST_RE = [/music\.apple\.com/].freeze
 
       VIDEO_HOST = %w[youtu.be youtube.com nico.ms nicovideo.jp video.twimg.com].freeze
 
