@@ -46,7 +46,7 @@ module TweetCurator
          end
 
          def get_image_urls(tweet)
-            tweet.fetch(:entities, {})
+            tweet.fetch(:extended_entities, {})
                  .fetch(:media, [])
                  .map { |m| m[:media_url_https] }
          end
