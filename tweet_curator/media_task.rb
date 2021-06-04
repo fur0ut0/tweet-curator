@@ -11,7 +11,7 @@ module TweetCurator
 
       IMAGE_HOST = %w[pbs.twimg.com].freeze
 
-      GENERAL_MUSIC_HOST = %w[linkco.re big-up.style nowplaying.jp orcd.co streamlink.to].freeze
+      GENERAL_MUSIC_HOST = %w[linkco.re big-up.style nowplaying.jp orcd.co streamlink.to nex-tone.link].freeze
       GENERAL_MUSIC_HOST_RE = [/soundcloud/, /lnk\.to/].freeze
 
       CONVERTIBLE_MUSIC_HOST = %w[song.link album.link open.spotify.com music.amazon.co.jp].freeze
