@@ -30,8 +30,8 @@ module TweetCurator
                Util.parse_json_str(Util.get_api(ODESLI_API_URL, params))
             rescue Net::HTTPRetriableError
                retry
-            rescue Error
-               nil
+            rescue => e
+               @logger.debug(self.class.name) { "get_odesli_info: ignored: #{e.message}" }
             end
          end
 
