@@ -20,7 +20,7 @@ module TweetCurator
       VIDEO_HOST = %w[youtu.be youtube.com nico.ms nicovideo.jp video.twimg.com].freeze
 
       class << self
-         def get_odesli_info(url, key: nil)
+         def get_odesli_info(url, key: nil, logger:)
             params = {
                url: url,
                userCountry: 'JP',
@@ -31,7 +31,7 @@ module TweetCurator
             rescue Net::HTTPRetriableError
                retry
             rescue => e
-               @logger.debug(self.class.name) { "get_odesli_info: ignored: #{e.message}" }
+               logger.debug(self.class.name) { "get_odesli_info: ignored: #{e.message}" }
             end
          end
 
@@ -192,7 +192,7 @@ module TweetCurator
       # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
 
       def convert_music_url(url)
-         odesli_info = MediaUtil.get_odesli_info(url, key: @odesli_api_key)
+         odesli_info = MediaUtil.get_odesli_info(url, key: @odesli_api_key, logger: @logger)
          @logger.debug(self.class.name) { "convert_music_url: #{odesli_info}" }
 
          links = odesli_info.fetch(:linksByPlatform, {})
