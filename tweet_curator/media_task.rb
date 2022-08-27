@@ -32,6 +32,7 @@ module TweetCurator
                retry
             rescue => e
                logger.debug(self.class.name) { "get_odesli_info: ignored: #{e.message}" }
+               {}
             end
          end
 
