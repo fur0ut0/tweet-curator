@@ -20,7 +20,11 @@ class App
       @task_name, @options = parse_args(args)
 
       @logger = Logger.new($stderr)
-      @logger.level = Logger::DEBUG if @options[:debug]
+      @logger.level = if @options[:debug]
+                         Logger::DEBUG
+                      else
+                         Logger::INFO
+                      end
 
       env_fetcher.load_dotenv if @options[:dotenv]
    end
