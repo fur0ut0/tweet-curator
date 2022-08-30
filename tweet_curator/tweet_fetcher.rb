@@ -84,6 +84,7 @@ module TweetCurator
             break total_tweets if tweets.size < params[:count]
 
             params[:max_id] = tweets.last[:id]
+            total_tweets
          end
       end
    end
