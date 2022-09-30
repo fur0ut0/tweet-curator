@@ -107,7 +107,7 @@ module TweetCurator
             # prepend tweet URL
             urls.prepend(Util.get_tweet_url(tweet[:user][:screen_name], tweet[:id]))
 
-            post_media_to_slack(tweet, urls)
+            post_media_to_slack(tweet, urls, logger: @logger)
          end
       end
 
@@ -148,7 +148,7 @@ module TweetCurator
          end.compact
       end
 
-      def post_media_to_slack(tweet, urls)
+      def post_media_to_slack(tweet, urls, logger:)
          @logger.info(self.class.name) { "post media to slack: #{tweet[:id]}, #{urls}" }
          text = %W[`#{tweet[:id]}`].concat(urls.map.with_index { |url, i| "#{i + 1}. #{url}" }).join("\n")
          begin
