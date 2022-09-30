@@ -151,13 +151,20 @@ module TweetCurator
       def post_media_to_slack(tweet, urls)
          @logger.info(self.class.name) { "post media to slack: #{tweet[:id]}, #{urls}" }
          text = %W[`#{tweet[:id]}`].concat(urls.map.with_index { |url, i| "#{i + 1}. #{url}" }).join("\n")
-         Util.post_api(@slack_webhook_url,
-                       {
-                          text: text,
-                          unfurl_links: true,
-                          mrkdwn: true,
-                          attachments: tweet[:user][:protected] ? [gen_slack_attachment(tweet)] : [],
-                       })
+         begin
+            Util.post_api(@slack_webhook_url,
+                          {
+                             text: text,
+                             unfurl_links: true,
+                             mrkdwn: true,
+                             attachments: tweet[:user][:protected] ? [gen_slack_attachment(tweet)] : [],
+                          })
+         rescue Net::HTTPRetriableError
+            retry
+         rescue => e
+            logger.debug(self.class.name) { "post_media_to_slack: ignored: #{e.message}" }
+            nil
+         end
       end
 
       # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
