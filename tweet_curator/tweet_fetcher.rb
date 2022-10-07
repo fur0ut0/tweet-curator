@@ -63,9 +63,12 @@ module TweetCurator
       def fetch_entrypoint(entrypoint, params)
          begin
             response = @api.get(entrypoint, params)
-         rescue HTTPRetriableError => e
+         rescue Net::HTTPRetriableError => e
             @logger.info(self.class.name) { %(got "#{e.message}", retry fetching) }
             retry
+         rescue => e
+            @logger.error(self.class.name) { %(give up fetching becasue of error: "#{e.message}") }
+            return []
          end
 
          Util.parse_json_str(response).tap do |tweets|
